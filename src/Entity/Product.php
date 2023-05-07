@@ -2,7 +2,6 @@
 
 namespace App\Entity;
 
-use App\Repository\ProductRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -52,7 +51,7 @@ class Product
     private $deletedAt;
 
     /**
-     * @ORM\OneToMany(targetEntity=ProductVariant::class, mappedBy="productId", orphanRemoval=true)
+     * @ORM\OneToMany(targetEntity=ProductVariant::class, mappedBy="product")
      */
     private $variants;
 
@@ -131,39 +130,9 @@ class Product
         return $this->deletedAt;
     }
 
-    public function setDeletedAt(?\DateTimeImmutable $deletedAt): self
+    public function setDeletedAt(?Datetime $deletedAt): self
     {
         $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, ProductVariant>
-     */
-    public function getVariants(): Collection
-    {
-        return $this->variants;
-    }
-
-    public function addVariant(ProductVariant $variant): self
-    {
-        if (!$this->variants->contains($variant)) {
-            $this->variants[] = $variant;
-            $variant->setProductId($this);
-        }
-
-        return $this;
-    }
-
-    public function removeSize(ProductVariant $variant): self
-    {
-        if ($this->variants->removeElement($variant)) {
-            // set the owning side to null (unless already changed)
-            if ($variant->getProductId() === $this) {
-                $variant->setProductId(null);
-            }
-        }
 
         return $this;
     }
@@ -181,5 +150,35 @@ class Product
         if ($this->getCreatedAt() === null) {
             $this->setCreatedAt($dateTimeNow);
         }
+    }
+
+    /**
+     * @return Collection<int, ProductVariant>
+     */
+    public function getVariants(): Collection
+    {
+        return $this->variants;
+    }
+
+    public function addVariant(ProductVariant $variant): self
+    {
+        if (!$this->variants->contains($variant)) {
+            $this->variants[] = $variant;
+            $variant->setProduct($this);
+        }
+
+        return $this;
+    }
+
+    public function removeVariant(ProductVariant $variant): self
+    {
+        if ($this->variants->removeElement($variant)) {
+            // set the owning side to null (unless already changed)
+            if ($variant->getProduct() === $this) {
+                $variant->setProduct(null);
+            }
+        }
+
+        return $this;
     }
 }

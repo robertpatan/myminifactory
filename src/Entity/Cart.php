@@ -153,7 +153,7 @@ class Cart
     public function getItemByProduct(Product $product): ?CartItem
     {
         foreach ($this->items as $item) {
-            if ($item->getProduct()->id === $product->getId()) {
+            if ($item->getProduct()->getId() === $product->getId()) {
                 return $item;
             }
         }

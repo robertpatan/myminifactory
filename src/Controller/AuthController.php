@@ -10,6 +10,28 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 class AuthController extends AbstractController
 {
     /**
+     * @Route("/profile")
+     */
+    public function profile(AuthenticationUtils $authenticationUtils): JsonResponse
+    {
+
+        $user = $this->getUser();
+
+        if (!$user) {
+            return new JsonResponse([
+                'error' => "Not authenticated.",
+            ], JsonResponse::HTTP_UNAUTHORIZED);
+        }
+
+        return new JsonResponse([
+            "id" => $user->getId(),
+            "name" => $user->getName(),
+            "email" => $user->getEmail(),
+            "credits" => $user->getCredits(),
+        ]);
+    }
+
+    /**
      * @Route("/login", name="app_login")
      */
     public function login(AuthenticationUtils $authenticationUtils): JsonResponse
@@ -20,8 +42,6 @@ class AuthController extends AbstractController
 
         // get the login error if there is one
         $error = $authenticationUtils->getLastAuthenticationError();
-        // last username entered by the user
-        $lastUsername = $authenticationUtils->getLastUsername();
 
         if ($error) {
             return new JsonResponse([

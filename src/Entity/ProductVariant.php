@@ -18,32 +18,20 @@ class ProductVariant
     private $id;
 
     /**
-     * @ORM\ManyToOne(targetEntity=Product::class, inversedBy="size")
-     * @ORM\JoinColumn(nullable=false)
-     */
-    private $productId;
-
-    /**
      * @ORM\Column(type="string", length=100)
      */
     private $size;
+
+    /**
+     * @ORM\ManyToOne(targetEntity=Product::class, inversedBy="variants")
+     */
+    private $product;
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getProductId(): ?Product
-    {
-        return $this->productId;
-    }
-
-    public function setProductId(?Product $productId): self
-    {
-        $this->productId = $productId;
-
-        return $this;
-    }
 
     public function getSize(): ?string
     {
@@ -53,6 +41,18 @@ class ProductVariant
     public function setSize(string $size): self
     {
         $this->size = $size;
+
+        return $this;
+    }
+
+    public function getProduct(): ?Product
+    {
+        return $this->product;
+    }
+
+    public function setProduct(?Product $product): self
+    {
+        $this->product = $product;
 
         return $this;
     }

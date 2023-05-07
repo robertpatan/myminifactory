@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Controller\Admin;
+namespace App\Controller;
 
 use App\Entity\User;
 use App\Form\UserType;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,6 +16,13 @@ use Symfony\Component\Routing\Annotation\Route;
  */
 class UserController extends AbstractController
 {
+    private $userRepository;
+
+    function __construct(UserRepository $userRepository)
+    {
+        $this->userRepository = $userRepository;
+    }
+
     /**
      * @Route("/new", methods={"POST"})
      */
@@ -59,8 +67,16 @@ class UserController extends AbstractController
     /**
      * @Route("/{id}/assign-credits", methods={"PATCH"})
      */
-    public function assignCredits(Request $request, User $user, EntityManagerInterface $entityManager): JsonResponse
+    public function assignCredits(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
+        $user = $this->userRepository->find($id);
+
+        if (!$user) {
+            return new JsonResponse([
+                'error' => 'User not found',
+            ], JsonResponse::HTTP_NOT_FOUND);
+        }
+
         $data = json_decode($request->getContent(), true);
 
         if (is_null($data)) {

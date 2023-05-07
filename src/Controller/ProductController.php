@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Controller\Admin;
+namespace App\Controller;
 
 use App\Entity\Product;
+use App\Entity\ProductVariant;
 use App\Form\ProductType;
 use App\Repository\ProductRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -11,24 +12,30 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\ORM\EntityManagerInterface;
 
-/**
- * @Route("/admin/products")
- */
 class ProductController extends AbstractController
 {
+    private $productRepository;
 
-    /**
-     * @Route("/", methods={"GET"})
-     */
-    public function index(ProductRepository $products): JsonResponse
+    function __construct(ProductRepository $productRepository)
     {
-        $products = $products->findAll();
-        $data = $this->serializeProducts($products);
-        return new JsonResponse($data);
+        $this->productRepository = $productRepository;
     }
 
     /**
-     * @Route("/new", methods={"POST"})
+     * @Route("/products", methods={"GET"})
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $query = $request->query->get('q', '');
+        $products = $this->productRepository->search($query);
+        $data = $this->serializeProducts($products);
+
+        return new JsonResponse($data);
+    }
+
+
+    /**
+     * @Route("/admin/products/new", methods={"POST"})
      */
     public function new(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -68,10 +75,18 @@ class ProductController extends AbstractController
 
 
     /**
-     * @Route("/{id}/edit", methods={"PUT"}, requirements={"id"="\d+"})
+     * @Route("/admin/products/{id}/edit", methods={"PUT"}, requirements={"id"="\d+"})
      */
-    public function edit(Request $request, Product $product, EntityManagerInterface $entityManager): JsonResponse
+    public function edit(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
+        $product = $this->productRepository->find($id);
+
+        if (!$product) {
+            return new JsonResponse([
+                'error' => 'Product not found',
+            ], JsonResponse::HTTP_NOT_FOUND);
+        }
+
         $data = json_decode($request->getContent(), true);
 
         if (is_null($data)) {
@@ -106,27 +121,72 @@ class ProductController extends AbstractController
     }
 
     /**
-     * @Route("/{id}/delete", methods={"DELETE"})
+     * @Route("/admin/products/{id}/delete", methods={"DELETE"})
      */
-    public function remove(Product $product, EntityManagerInterface $entityManager): JsonResponse
+    public function remove(int $id, EntityManagerInterface $entityManager): JsonResponse
     {
+        $product = $this->productRepository->find($id);
+
+        if (!$product) {
+            return new JsonResponse([
+                'error' => 'Product not found',
+            ], JsonResponse::HTTP_NOT_FOUND);
+        }
+
         $entityManager->remove($product);
         $entityManager->flush();
 
         return new JsonResponse('Success');
     }
 
+    /**
+     * @Route("/admin/products/{id}/variants/new", methods={"POST"})
+     */
+    public function createVariant(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $product = $this->productRepository->find($id);
+
+        if (!$product) {
+            return new JsonResponse([
+                'error' => 'Product not found',
+            ], JsonResponse::HTTP_NOT_FOUND);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        if (is_null($data)) {
+            return new JsonResponse([
+                'error' => 'Invalid JSON payload',
+            ], JsonResponse::HTTP_BAD_REQUEST);
+        }
+
+        $variant = new ProductVariant();
+        $variant->setSize($data['size']);
+        $variant->setProduct($product);
+        $entityManager->persist($variant);
+        $entityManager->flush();
+
+        return new JsonResponse('Variant created successfully.');
+    }
+
     private function serializeProducts(array $products): array
     {
-        $data = [];
-        foreach ($products as $product) {
-            $data[] = [
+        return array_map(function ($product) {
+            $variants = array_map(function ($variant) {
+                return [
+                    'id' => $variant->getId(),
+                    'size' => $variant->getSize(),
+                ];
+            }, $product->getVariants()->toArray());
+
+            return [
                 'id' => $product->getId(),
                 'name' => $product->getName(),
                 'price' => $product->getPrice(),
+                'description' => $product->getDescription(),
+                'variants' => $variants,
             ];
-        }
-
-        return $data;
+        }, $products);
     }
+
 }

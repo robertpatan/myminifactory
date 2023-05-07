@@ -4,8 +4,9 @@ namespace App\Controller;
 
 use App\Entity\Cart;
 use App\Entity\CartItem;
-use App\Entity\Product;
 use App\Entity\User;
+use App\Repository\CartItemRepository;
+use App\Repository\ProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,21 +16,58 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class CartController extends AbstractController
 {
-    /**
-     * @Route("/carts", methods={"GET"})
-     */
-    public function index(): Response
-    {
-        /** @var User $user */
-        $user = $this->getUser();
+    private $productRepository;
+    private $cartItemRepository;
 
-        return $this->render('cart/index.html.twig', [
-            'user' => $user,
+    function __construct(ProductRepository $productRepository, CartItemRepository $cartItemRepository)
+    {
+        $this->productRepository = $productRepository;
+        $this->cartItemRepository = $cartItemRepository;
+    }
+
+    /**
+     * @Route("/cart", methods={"GET"})
+     */
+    public function index(): JsonResponse
+    {
+        $user = $this->getUser();
+        $cart = $user->getCart();
+
+        if (!$cart) {
+            return new JsonResponse([
+            ]);
+        }
+        $cartItems = $cart->getItems();
+
+        $totalPrice = 0;
+        $itemsData = [];
+
+        foreach ($cartItems as $item) {
+            $product = $item->getProduct();
+            $price = number_format($product->getPrice() * $item->getQuantity());
+            $totalPrice += $price;
+
+            $itemsData[] = [
+                'id' => $item->getId(),
+                'product' => [
+                    'id' => $product->getId(),
+                    'name' => $product->getName(),
+                    'price' => $product->getPrice(),
+                ],
+                'quantity' => $item->getQuantity(),
+                'price' => $price,
+            ];
+        }
+
+        return new JsonResponse([
+            "id" => $cart->getId(),
+            "items" => $itemsData,
+            "totalPrice" => $totalPrice
         ]);
     }
 
     /**
-     * @Route("/carts/add", methods={"POST"})
+     * @Route("/cart/add", methods={"POST"})
      */
     public function addToCart(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -46,8 +84,10 @@ class CartController extends AbstractController
 
         $productId = $data['product_id'];
         $quantity = $data['quantity'];
+        //TODO: add variant to cart
+        $variant = $data['variant'];
 
-        $product = $entityManager->getRepository(Product::class)->find($productId);
+        $product = $this->productRepository->find($productId);
 
         if (!$product) {
             return new JsonResponse([
@@ -56,10 +96,11 @@ class CartController extends AbstractController
         }
 
         $cart = $user->getCart();
-        if($cart) {
+        if (!$cart) {
             $cart = new Cart();
             $cart->setUser($user);
         }
+        $entityManager->persist($cart);
 
         // Check if the product is already in the cart
         $cartItem = $cart->getItemByProduct($product);
@@ -67,7 +108,7 @@ class CartController extends AbstractController
         if (!$cartItem) {
             $cartItem = new CartItem();
             $cartItem->setProduct($product);
-            $cartItem->setQuantity($quantity);
+            $cartItem->setQuantity((int) $quantity);
             $cartItem->setCart($cart);
             $cart->addItem($cartItem);
         } else {
@@ -90,10 +131,18 @@ class CartController extends AbstractController
     }
 
     /**
-     * @Route("/carts/remove/{cartItem}", methods={"DELETE"})
+     * @Route("/cart/remove/{cartItemId}", methods={"DELETE"})
      */
-    public function removeFromCart(CartItem $cartItem, EntityManagerInterface $entityManager): JsonResponse
+    public function removeFromCart(int $cartItemId, EntityManagerInterface $entityManager): JsonResponse
     {
+        $cartItem = $this->cartItemRepository->find($cartItemId);
+
+        if (!$cartItem) {
+            return new JsonResponse([
+                'error' => 'Cart item not found',
+            ], JsonResponse::HTTP_NOT_FOUND);
+        }
+
         $entityManager->remove($cartItem);
         $entityManager->flush();
 
