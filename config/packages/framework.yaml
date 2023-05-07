@@ -15,3 +15,13 @@ framework:
     #fragments: true
     php_errors:
         log: true
+
+    http_client:
+        scoped_clients:
+            admin:
+                base_uri: 'http://localhost:8000/admin'
+                auth_basic: 'admin:admin'
+    form:
+        csrf_protection:
+            enabled: false
+
