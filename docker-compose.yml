@@ -1,9 +1,9 @@
 version: "3.5"
 
 services:
-  mini-mysql:
+  mysql:
     image: mysql:8.0.30
-    container_name: "mini-mysql"
+    container_name: "mysql"
     restart: unless-stopped
     ports:
       - 3306:3306
@@ -16,9 +16,14 @@ services:
       - MYSQL_USER=mini
       - MYSQL_DATABASE=minifactory
       - MYSQL_PASSWORD=minisecret
-  mailer:
-    image: schickling/mailcatcher
-    ports: ["1025", "1080"]
+  
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: "mailhog"
+    restart: unless-stopped
+    ports:
+      - 1025:1025
+      - 8025:8025
 
 volumes:
   dbdata:

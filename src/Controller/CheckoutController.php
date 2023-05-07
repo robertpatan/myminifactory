@@ -4,6 +4,7 @@ namespace App\Controller;
 use App\Entity\Purchase;
 use App\Entity\PurchaseItem;
 use App\Entity\User;
+use App\Service\EmailService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,7 +28,7 @@ class CheckoutController extends AbstractController
     /**
      * @Route("/checkout", methods={"POST"})
      */
-    public function checkout(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function checkout(Request $request, EntityManagerInterface $entityManager, EmailService $emailService): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -75,6 +76,8 @@ class CheckoutController extends AbstractController
         // Persist and flush the new Purchase
         $entityManager->persist($purchase);
         $entityManager->flush();
+
+        $emailService->sendPurchaseConfirmation($user->getEmail(), 'Purchase details (customize as needed)');
 
         return new JsonResponse([
             'success' => 'Checkout successful',
